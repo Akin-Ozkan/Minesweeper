@@ -4,8 +4,8 @@
 using namespace std;
 
 struct Fill{
-    int r;
-    int c;
+    int x_c;
+    int y_c;
     Fill* next;
 };
 
@@ -68,9 +68,58 @@ void checkMine(int** mineMap, int** hintMap, int r, int c)
     }
 }
 
-void floodFill(int** mineMap, int r, int c, int x, int y, int head)
+void enqueue(struct Fill** top, struct Fill** tail, int x, int y)
+{
+    Fill* temp = *tail;
+
+    temp->x_c = x;
+    temp->y_c = y;
+
+    if(*top == nullptr)
+    {
+        *top = *tail = temp;
+        return;
+    }
+
+    temp->next = *top;
+    *top = temp;
+}
+
+void dequeue(Fill** top, Fill* tail)
 {
     
+}
+
+void floodFill(int** mineMap, int r, int c, Fill** top, Fill** tail)
+{
+    while(top != nullptr)
+    {
+        int currentX = (*top)->x_c;
+        int currentY = (*top)->y_c;
+
+        if(mineMap[currentY][currentX - 1] == 0)
+        {
+           enqueue(top, tail, currentY, currentX - 1);
+        }
+
+        if(mineMap[currentY - 1][currentX] == 0)
+        {
+           enqueue(top, tail, currentY - 1, currentX);
+        }
+
+        if(mineMap[currentY][currentX + 1] == 0)
+        {
+           enqueue(top, tail, currentY, currentX + 1);
+        }
+
+        if(mineMap[currentY + 1][currentX] == 0)
+        {
+           enqueue(top, tail, currentY + 1, currentX);
+        }
+
+        dequeue();
+
+    }
 }
 
 
@@ -118,10 +167,23 @@ int main()
 
     cout << endl;
 
+    Fill* top = new Fill;
+    top->x_c = 4;
+    top->y_c = 5;
+    Fill* tail = top;
+
+
+    if(mineMap[5][4])
+    {
+        floodFill(mineMap, r, c, &top, &tail);
+    }
+    else return 0;
+    
+
     // int** revealState = createMap(r,c);
     // userInterface(revealState, r, c);
     // cout << "revealState" << endl;
-    // displayMap(revealState, r, c);
+    // displayMap(reveal((*head)->x_c)]State, r, c);
     
     return 0;
 }
