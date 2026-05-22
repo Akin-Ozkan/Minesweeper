@@ -68,12 +68,13 @@ void checkMine(int** mineMap, int** hintMap, int r, int c)
     }
 }
 
-void enqueue(struct Fill** top, struct Fill** tail, int x, int y)
+void enqueue(struct Fill** top, struct Fill** tail, int y, int x)
 {
-    Fill* temp = *tail;
+    Fill* temp = new Fill;
 
     temp->x_c = x;
     temp->y_c = y;
+    temp->next = nullptr;
 
     if(*top == nullptr)
     {
@@ -81,44 +82,75 @@ void enqueue(struct Fill** top, struct Fill** tail, int x, int y)
         return;
     }
 
-    temp->next = *top;
-    *top = temp;
-}
-
-void dequeue(Fill** top, Fill* tail)
-{
+    (*tail)->next = temp;
+    *tail = temp;
     
+    
+    return;
 }
 
-void floodFill(int** mineMap, int r, int c, Fill** top, Fill** tail)
+void dequeue(Fill** top, Fill** tail)
 {
-    while(top != nullptr)
+    if (*top == nullptr)
+    {
+        return;
+    }
+
+    Fill* temp = *top;
+    
+    if(*top == *tail)
+    {
+        *top = *tail = nullptr;
+    }
+    else *top = temp->next;
+    delete temp;
+    return;
+}
+
+void floodFill(int** hintMap, int** revealState, int r, int c, Fill** top, Fill** tail)
+{
+    while( (*top) != nullptr )
     {
         int currentX = (*top)->x_c;
         int currentY = (*top)->y_c;
 
-        if(mineMap[currentY][currentX - 1] == 0)
+        if(currentX != 0 && hintMap[currentY][currentX - 1] == 0)
         {
-           enqueue(top, tail, currentY, currentX - 1);
+            if(revealState[currentY][currentX - 1] == 0)
+            {
+                revealState[currentY][currentX - 1] = 1;
+                enqueue(top, tail, currentY, currentX - 1);
+            }
         }
 
-        if(mineMap[currentY - 1][currentX] == 0)
+        if(currentY != 0 && hintMap[currentY - 1][currentX] == 0 )
         {
-           enqueue(top, tail, currentY - 1, currentX);
+            if(revealState[currentY - 1][currentX] == 0)
+            {
+                revealState[currentY - 1][currentX] = 1;
+                enqueue(top, tail, currentY - 1, currentX);
+            }
         }
 
-        if(mineMap[currentY][currentX + 1] == 0)
+        if(currentX != (c - 1) && hintMap[currentY][currentX + 1] == 0 )
         {
-           enqueue(top, tail, currentY, currentX + 1);
+           if(revealState[currentY][currentX + 1] == 0)
+            {
+                revealState[currentY][currentX + 1] = 1;
+                enqueue(top, tail, currentY, currentX + 1);
+            }
         }
 
-        if(mineMap[currentY + 1][currentX] == 0)
+        if(currentY != (r - 1) && hintMap[currentY + 1][currentX] == 0 )
         {
-           enqueue(top, tail, currentY + 1, currentX);
+           if(revealState[currentY + 1][currentX] == 0)
+            {
+                revealState[currentY + 1][currentX] = 1;
+                enqueue(top, tail, currentY + 1, currentX);
+            }
         }
 
-        dequeue();
-
+        dequeue(top, tail);
     }
 }
 
@@ -170,16 +202,9 @@ int main()
     Fill* top = new Fill;
     top->x_c = 4;
     top->y_c = 5;
+    top->next = nullptr;
     Fill* tail = top;
-
-
-    if(mineMap[5][4])
-    {
-        floodFill(mineMap, r, c, &top, &tail);
-    }
-    else return 0;
     
-
     // int** revealState = createMap(r,c);
     // userInterface(revealState, r, c);
     // cout << "revealState" << endl;
