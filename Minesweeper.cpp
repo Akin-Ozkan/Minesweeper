@@ -232,6 +232,7 @@ void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c, i
                 cout << "F";
             }
             else cout << ".";
+            
             if(i == cY && j == cX - 1)
             {
                 cout << ">";
@@ -323,6 +324,7 @@ int main()
             int x, y, p, counter = 0;
 
             displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX);
+
 
             cout << "Movement: WASD | fLAG: F | Open cell: Space" << endl;
             char button = catchButton();
