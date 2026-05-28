@@ -3,6 +3,31 @@
 
 using namespace std;
 
+#ifdef _WIN32 //This cursor block created by AI, it is not a project requirement.
+    #include <conio.h> // Windows için getch()
+    char catchButton() {
+        return _getch();
+    }
+#else
+    #include <termios.h> // Linux için terminal ayarları
+    #include <unistd.h>
+    char catchButton() {
+        char buf = 0;
+        struct termios old = {0};
+        if (tcgetattr(0, &old) < 0) perror("tcsetattr()");
+        old.c_lflag &= ~ICANON; // Enter basma zorunluluğunu kaldırır
+        old.c_lflag &= ~ECHO;   // Basılan harfin ekrana yazılmasını engeller
+        old.c_cc[VMIN] = 1;
+        old.c_cc[VTIME] = 0;
+        if (tcsetattr(0, TCSANOW, &old) < 0) perror("tcsetattr ~ICANON");
+        if (read(0, &buf, 1) < 0) perror("read()");
+        old.c_lflag |= ICANON;
+        old.c_lflag |= ECHO;
+        if (tcsetattr(0, TCSANOW, &old) < 0) perror("tcsetattr ICANON");
+        return (buf);
+    }
+#endif
+
 struct Fill{
     int x_c;
     int y_c;
@@ -192,7 +217,7 @@ void displayMines(int** gameboard, int r, int c)
     return;
 }
 
-void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c)
+void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c, int cY, int cX)
 {
     for(int i = 0; i < r; i++)
     {
@@ -207,7 +232,15 @@ void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c)
                 cout << "F";
             }
             else cout << ".";
-            cout << " ";
+            if(i == cY && j == cX - 1)
+            {
+                cout << ">";
+            }
+            else if(i == cY && j == cX)
+            {
+                cout << "<";
+            }
+            else cout << " ";
         }
         cout << endl;
     }
@@ -237,7 +270,7 @@ int starter(int level)
 
 void clearScreen()
 {
-    
+    cout << "\033[2J\033[H" << flush;   
 }
 
 int main()
@@ -251,7 +284,7 @@ int main()
 
     while(1)
     {
-        cout << "\033[2J\033[H" << flush;
+        clearScreen();
         level = starter(level);
         switch(level)
         {
@@ -277,47 +310,70 @@ int main()
         int** hintMap = createMap(r,c);
         checkMine(mineMap, hintMap, r, c);
         int** revealState = createMap(r,c);
+        int t_reveal, reveal;
 
-        while(1)
+        int cursorX = 0;
+        int cursorY = 0;
+        bool continue_game = true;
+
+        while(continue_game)
         {
-            cout << "\033[2J\033[H" << flush;
-            int last_reveal = (r*c) - (r*c) * (mine_percent/100);
+            clearScreen();
+            int last_reveal = (r*c) - ((r*c)*mine_percent/100);
             int x, y, p, counter = 0;
 
-            displayMap(mineMap, hintMap, revealState, r, c);
+            displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX);
 
-            cout << "x y p: ";
-            cin >> x;
-            cin >> y;
-            cin >> p;
+            cout << "Movement: WASD | fLAG: F | Open cell: Space" << endl;
+            char button = catchButton();
 
-            if(p == 0)
+            switch(button)
             {
-                revealState[y][x] = 2;
-            }
-            else if(p == 1)
-            {
-                if(mineMap[y][x] == 1)
-                {
-                    cout << "Game Over!" << endl;
-                    displayMines(mineMap, r, c);
-                    cout << endl << endl;
+                case 'w': case 'W':
+                    if (cursorY > 0) cursorY--;
                     break;
-                }
-                else
-                {
-                    Fill* top = new Fill;
-                    Fill* tail = top;
-                    top->x_c = x;
-                    top->y_c = y;
-                    top->next = nullptr;
-                    floodFill(hintMap, revealState, r, c, &top, &tail);
-                    if(t_reveal != reveal)
-                    {
-                        displayMap(mineMap, hintMap, revealState, r, c);
+                case 's': case 'S':
+                    if (cursorY < r - 1) cursorY++;
+                    break;
+                case 'a': case 'A':
+                    if (cursorX > 0) cursorX--;
+                    break;
+                case 'd': case 'D':
+                    if (cursorX < c - 1) cursorX++;
+                    break;
+                case 'f': case 'F':
+                    if(revealState[cursorY][cursorX] == 0)
+                    {       
+                        revealState[cursorY][cursorX] = 2;
                     }
-                    
-                }
+                    else if(revealState[cursorY][cursorX] == 2)
+                    {
+                        revealState[cursorY][cursorX] = 0;
+                    }
+                    break;
+                case ' ':
+
+                    if(mineMap[cursorY][cursorX] == 1)
+                    {
+                        clearScreen();
+                        cout << "Game Over!" << endl;
+                        displayMines(mineMap, r, c);
+                        cout << endl << endl;
+                        continue_game = false;
+                    }
+                    else
+                    {
+                        Fill* top = new Fill;
+                        Fill* tail = top;
+                        top->x_c = x;
+                        top->y_c = y;
+                        top->next = nullptr;
+                        floodFill(hintMap, revealState, r, c, &top, &tail);
+                        if(t_reveal != reveal)
+                        {
+                            displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX);
+                        } 
+                    }
             }
         }
 
@@ -328,7 +384,3 @@ int main()
    
     return 0;
 }
-
-// 1- %10- 10x10
-// 2- %16- 15x15
-// 3- %21- 20x20
