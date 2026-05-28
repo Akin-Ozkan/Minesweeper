@@ -1,5 +1,7 @@
 #include <iostream>
 #include <random>
+#include <chrono>
+#include <thread>
 
 using namespace std;
 
@@ -34,6 +36,11 @@ struct Fill{
     Fill* next;
 };
 
+void waitSeconds(int s)
+{
+    // Verilen saniye (s) kadar mevcut iş parçacığını (thread) uyutur
+    this_thread::sleep_for(chrono::seconds(s));
+}
 
 int** createMap(int row, int col)
 {
@@ -149,8 +156,9 @@ void dequeue(Fill** top, Fill** tail)
     return;
 }
 
-void checkState(int** hintMap, int** revealState, int r, int c, int x, int y, Fill** top, Fill** tail)
+int checkState(int** hintMap, int** revealState, int r, int c, int x, int y, Fill** top, Fill** tail)
 {
+    int counter = 0;
     for(int i = -1; i <= 1; i++)
     {
         for(int j = -1; j <= 1; j++)
@@ -166,25 +174,28 @@ void checkState(int** hintMap, int** revealState, int r, int c, int x, int y, Fi
                 if(revealState[n_r][n_c] == 0)
                 {
                     revealState[n_r][n_c] = 1;
+                    counter++;
                     if(hintMap[n_r][n_c] == 0) enqueue(top, tail, n_r, n_c);
                 }
             }
         } 
     }
+    return counter;    
 }
 
 
 
 
-void floodFill(int** hintMap, int** revealState, int r, int c, Fill** top, Fill** tail)
+int floodFill(int** hintMap, int** revealState, int r, int c, Fill** top, Fill** tail)
 {
     int counter = 0;
     revealState[(*top)->y_c][(*top)->x_c] = 1;
+    counter++;
 
     if(hintMap[(*top)->y_c][(*top)->x_c] != 0)
     {
         dequeue(top, tail);
-        return;
+        return counter;
     }
 
     while( (*top) != nullptr )
@@ -192,10 +203,10 @@ void floodFill(int** hintMap, int** revealState, int r, int c, Fill** top, Fill*
         int currentX = (*top)->x_c;
         int currentY = (*top)->y_c;
 
-        checkState(hintMap, revealState, r, c, currentX, currentY, top, tail);
+        counter += checkState(hintMap, revealState, r, c, currentX, currentY, top, tail);
         dequeue(top, tail);
     }
-    return;
+    return counter;
 }
 
 
@@ -223,6 +234,12 @@ void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c, i
     {
         for(int j = 0; j < c; j++)
         {
+            if(i == cY && j == cX)
+            {
+                cout << ">";
+            }
+            else cout << " ";
+
             if(revealState[i][j] == 1)
             {
                 cout << hintMap[i][j];
@@ -231,17 +248,16 @@ void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c, i
             {
                 cout << "F";
             }
-            else cout << ".";
-            
-            if(i == cY && j == cX - 1)
+            else
             {
-                cout << ">";
+                cout << ".";
             }
-            else if(i == cY && j == cX)
+            if(i == cY && j == cX)
             {
                 cout << "<";
             }
             else cout << " ";
+
         }
         cout << endl;
     }
@@ -311,7 +327,9 @@ int main()
         int** hintMap = createMap(r,c);
         checkMine(mineMap, hintMap, r, c);
         int** revealState = createMap(r,c);
-        int t_reveal, reveal;
+
+        int last_reveal = (r*c) - ((r*c)*mine_percent/100);
+        int reveal = 0;
 
         int cursorX = 0;
         int cursorY = 0;
@@ -320,8 +338,7 @@ int main()
         while(continue_game)
         {
             clearScreen();
-            int last_reveal = (r*c) - ((r*c)*mine_percent/100);
-            int x, y, p, counter = 0;
+
 
             displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX);
 
@@ -359,23 +376,50 @@ int main()
                     {
                         clearScreen();
                         cout << "Game Over!" << endl;
+                        waitSeconds(2);
                         displayMines(mineMap, r, c);
                         cout << endl << endl;
                         continue_game = false;
                     }
+
                     else
                     {
+                        if(revealState[cursorY][cursorX] == 1)
+                        {
+                            cout << "Block already opened." << endl;
+                            waitSeconds(2);
+                            continue;
+                        }
+                        else if(revealState[cursorY][cursorX] == 2)
+                        {
+                            cout << "Block has a flag." << endl;
+                            waitSeconds(2);
+                            continue;
+                        }
                         Fill* top = new Fill;
                         Fill* tail = top;
-                        top->x_c = x;
-                        top->y_c = y;
+                        top->x_c = cursorX;
+                        top->y_c = cursorY;
                         top->next = nullptr;
-                        floodFill(hintMap, revealState, r, c, &top, &tail);
-                        if(t_reveal != reveal)
+                        reveal += floodFill(hintMap, revealState, r, c, &top, &tail);
+                        if(last_reveal != reveal)
                         {
                             displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX);
-                        } 
+                        }
+                        else
+                        {
+                            cout << "Win!" << endl;
+                            displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX);
+                            waitSeconds(2);
+
+                            if(level <= 2)
+                            {
+                                level++;
+                            }
+                            continue_game = false;
+                        }
                     }
+                    break;
             }
         }
 
