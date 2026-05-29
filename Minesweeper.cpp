@@ -1,4 +1,6 @@
 #include <iostream>
+#include <fstream>
+#include <string>
 #include <random>
 #include <chrono>
 #include <thread>
@@ -295,6 +297,58 @@ int main()
     random_device rd;
     mt19937 gen(rd());
 
+    fstream file("user.txt", ios::app);
+    file.close();
+
+
+    while(1)
+    {
+
+        fstream file("user.txt", ios::in | ios::out);
+
+        if(file.is_open())
+        {
+            cout << "User registration file is opened." << endl << endl;
+        }
+
+        int if_login;
+        cout << "1)Register\n2)Log in\n";
+        cin >> if_login;
+
+        if(if_login == 2)
+        {
+            file.seekg(0);
+            if(file.peek() == ifstream::traits_type::eof())
+            {
+                cout << endl << "User not found, please create a new user" << endl;
+                continue;
+            }
+            else
+            {
+                file.seekg(0);
+                
+            }
+        }
+
+        else
+        {
+            cin.ignore();
+            file.close();
+            file.open("user.txt", ios::in | ios::out | ios::trunc);
+            
+            string n, p;
+            cout << "User Name: ";
+            getline(cin, n);
+            file << n << endl;
+            cout << "Password: ";
+            getline(cin, p);
+            file << p << endl;
+
+            file.close();
+        }
+
+    }
+    
 
     int level = 1;
     int r, c, mine_percent;
