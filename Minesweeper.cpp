@@ -8,12 +8,12 @@
 using namespace std;
 
 #ifdef _WIN32 //This cursor block created by AI, it is not a project requirement.
-    #include <conio.h> // Windows için getch()
+    #include <conio.h> // getch() for Windows
     char catchButton() {
         return _getch();
     }
 #else
-    #include <termios.h> // Linux için terminal ayarları
+    #include <termios.h> // Terminal settings for Linux
     #include <unistd.h>
     char catchButton() {
         char buf = 0;
@@ -40,7 +40,6 @@ struct Fill{
 
 void waitSeconds(int s);
 int** createMap(int row, int col);
-int** createMap(int row, int col);
 void addMine(int** mineMap, int r, int c, int d, mt19937& gen);
 void checkMine(int** mineMap, int** hintMap, int r, int c);
 void enqueue(struct Fill** top, struct Fill** tail, int y, int x);
@@ -53,9 +52,6 @@ void deleteMap(int** gameboard, int r);
 int starter(int level);
 void clearScreen();
 
-
-
-
 int main()
 {
     random_device rd;
@@ -64,15 +60,22 @@ int main()
     fstream file("user.txt", ios::app);
     file.close();
 
+    string active_user = "";
+    string active_pass = "";
+    bool game_loaded = false;
+
+    int loaded_reveal = 0;
+    int level = 1;
+    int r, c, mine_percent;
+
 
     while(1)
     {
-
         fstream file("user.txt", ios::in | ios::out);
 
         if(file.is_open())
         {
-            cout << "User registration file is opened." << endl << endl;
+            cout << endl << "User registration file is opened. Warning! User Name system is not case-sensitive." << endl;
         }
 
         int if_login;
@@ -84,16 +87,55 @@ int main()
             file.seekg(0);
             if(file.peek() == ifstream::traits_type::eof())
             {
-                cout << endl << "User not found, please create a new user" << endl;
+                cout << endl << "User not found, please create a new user." << endl;
                 continue;
             }
             else
             {
+                cin.ignore();
+                string input_n, input_p;
+                cout << "User Name: ";
+                getline(cin, input_n);
+                cout << "Password: ";
+                getline(cin, input_p);
+
                 file.seekg(0);
-                
+                string n, p;
+                getline(file, n);
+                getline(file, p);
+
+                if(input_n == n && input_p == p)
+                {
+                    cout << endl << "Login Successful!" << endl;
+                    active_user = n;
+                    active_pass = p;
+                    
+                    file >> level;
+
+                    if(file >> r >> c >> loaded_reveal >> mine_percent)
+                    {
+                        game_loaded = true; 
+                        cout << "Saved game found! Loading the game" << endl;
+                    }
+
+                    else
+                    {
+                        cout << "No saved game. Starting a new game." << endl;
+                    }
+                    waitSeconds(2);
+                    file.close();
+                    break;
+                }
+
+                else
+                {
+                    cout << endl << "Invalid username or password!" << endl;
+                    waitSeconds(2);
+                    file.close();
+                    continue;
+                }   
             }
         }
-
         else
         {
             cin.ignore();
@@ -107,50 +149,94 @@ int main()
             cout << "Password: ";
             getline(cin, p);
             file << p << endl;
-
+            file << 1 << endl;
             file.close();
+
+            active_user = n;
+            active_pass = p;
+            break;
         }
-
     }
-    
-
-    int level = 1;
-    int r, c, mine_percent;
 
     while(1)
     {
         clearScreen();
-        level = starter(level);
-        switch(level)
+
+        int** mineMap = nullptr;
+        int** hintMap = nullptr;
+        int** revealState = nullptr;
+
+        int reveal = 0;
+        int last_reveal = 0;
+
+        if(!game_loaded)
         {
-        case 1:
-            r = 10;
-            c = 10;
-            mine_percent = 10;
-            break;
-        case 2:
-            r = 15;
-            c = 15;
-            mine_percent = 16;
-            break;
-        case 3:
-            r = 20;
-            c = 20;
-            mine_percent = 21;
-            break;
+            level = starter(level);
+            switch(level)
+            {
+            case 1: r = 10; c = 10; mine_percent = 10; break;
+            case 2: r = 15; c = 15; mine_percent = 16; break;
+            case 3: r = 20; c = 20; mine_percent = 21; break;
+            }
+
+            mineMap = createMap(r,c);
+            addMine(mineMap, r, c, mine_percent, gen);
+            hintMap = createMap(r,c);
+            checkMine(mineMap, hintMap, r, c);
+            revealState = createMap(r,c);
+
+            last_reveal = (r*c) - ((r*c)*mine_percent/100);
+            reveal = 0;
         }
 
-        int** mineMap = createMap(r,c);
-        addMine(mineMap, r, c, mine_percent, gen);
-        int** hintMap = createMap(r,c);
-        checkMine(mineMap, hintMap, r, c);
-        int** revealState = createMap(r,c);
+        else
+        {
+            ifstream load("user.txt");
+            load.seekg(0);
+            string skip;
+            getline(load, skip);
+            getline(load, skip);
+            getline(load, skip);
+            getline(load, skip);
 
-        int last_reveal = (r*c) - ((r*c)*mine_percent/100);
-        int reveal = 0;
+            mineMap = createMap(r, c);
+            hintMap = createMap(r, c);
+            revealState = createMap(r, c);
 
-        int cursorX = 0;
+            for(int i = 0; i < r; i++)
+            {
+                for(int j = 0; j < c; j++)
+                {
+                    load >> mineMap[i][j];
+                }
+            }
+
+            for(int i = 0; i < r; i++)
+            {
+                for(int j = 0; j < c; j++)
+                {
+                    load >> hintMap[i][j];
+                }
+            }
+
+            for(int i = 0; i < r; i++)
+            {
+                for(int j = 0; j < c; j++)
+                {
+                    load >> revealState[i][j];
+                }
+            }
+
+            load.close();
+
+            reveal = loaded_reveal;
+            last_reveal = (r * c) - ((r * c) * mine_percent / 100);
+            game_loaded = false;
+        }
+
         int cursorY = 0;
+        int cursorX = 0;
+        
         bool continue_game = true;
 
         while(continue_game)
@@ -161,7 +247,7 @@ int main()
             displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX);
 
 
-            cout << "Movement: WASD | fLAG: F | Open cell: Space" << endl;
+            cout << "Movement: WASD | Flag: F | Open cell: Space" << endl;
             char button = catchButton();
 
             switch(button)
@@ -194,9 +280,15 @@ int main()
                     {
                         clearScreen();
                         cout << "Game Over!" << endl;
-                        waitSeconds(2);
                         displayMines(mineMap, r, c);
+                        waitSeconds(2);
                         cout << endl << endl;
+
+                        ofstream cleanFile("user.txt", ios::trunc);
+                        cleanFile << active_user << endl << active_pass << endl;
+                        cleanFile << level << endl;
+                        cleanFile.close();
+                        
                         continue_game = false;
                     }
 
@@ -234,19 +326,53 @@ int main()
                             {
                                 level++;
                             }
+
+                            ofstream cleanFile("user.txt", ios::trunc);
+                            cleanFile << active_user << endl << active_pass << endl;
+                            cleanFile << level << endl;
+
                             continue_game = false;
                         }
                     }
                     break;
+                case 'e': case 'E':
+                {
+                    clearScreen();
+                    cout << "Saving game and safely exiting..." << endl;
+                
+                    ofstream saveFile("user.txt", ios::trunc);
+                    if(saveFile.is_open())
+                    {
+                        saveFile << active_user << endl << active_pass << endl;
+                        saveFile << level << endl;
+                        saveFile << r << " " << c << " " << reveal << " " << mine_percent << endl;
+                                                
+                        for(int i=0; i<r; i++) {
+                            for(int j=0; j<c; j++) saveFile << mineMap[i][j] << " ";
+                            saveFile << endl;
+                        }
+                        for(int i=0; i<r; i++) {
+                            for(int j=0; j<c; j++) saveFile << hintMap[i][j] << " ";
+                            saveFile << endl;
+                        }
+                        for(int i=0; i<r; i++) {
+                            for(int j=0; j<c; j++) saveFile << revealState[i][j] << " ";
+                            saveFile << endl;
+                        }
+                        saveFile.close();
+                    }
+                    deleteMap(mineMap, r);
+                    deleteMap(hintMap, r);
+                    deleteMap(revealState, r);
+                    return 0;
+                }
             }
         }
 
         deleteMap(mineMap, r);
-        deleteMap(hintMap,r);
+        deleteMap(hintMap, r);
         deleteMap(revealState, r);
     }
-   
-    return 0;
 }
 
 void waitSeconds(int s)
@@ -309,8 +435,7 @@ void checkMine(int** mineMap, int** hintMap, int r, int c)
                     int n_r = i + x;
                     int n_c = j + y;
 
-                    if((n_r >= 0 && n_r < r && n_c >= 0 && n_c < c) ||
-                    (n_r == 0 &&  n_c >= 0 && n_c < c)|| (n_c == 0 && n_r >= 0 && n_r < r))
+                    if(n_r >= 0 && n_r < r && n_c >= 0 && n_c < c)
                     {
                         if(x == 0 && y == 0)
                         {
@@ -488,7 +613,7 @@ int starter(int level)
         cout << ":::::Minesweeper:::::" << endl << endl;
         cout << "Choose level: " << endl << "Level 1: Easy" << endl << "Level 2: Normal" << endl << "Level 3: Hard" << endl << "Level ";
         cin >> x;
-        if(level < x) cout << "You can choose level less than" << level << endl << endl << endl;
+        if(level < x) cout << "You can choose maximum level " << level << endl << endl << endl;
         else return x;
     }
 }
