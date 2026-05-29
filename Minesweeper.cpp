@@ -46,8 +46,7 @@ void enqueue(struct Fill** top, struct Fill** tail, int y, int x);
 void dequeue(Fill** top, Fill** tail);
 int checkState(int** hintMap, int** revealState, int r, int c, int x, int y, Fill** top, Fill** tail);
 int floodFill(int** hintMap, int** revealState, int r, int c, Fill** top, Fill** tail);
-void displayMines(int** gameboard, int r, int c);
-void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c, int cY, int cX);
+void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c, int cY, int cX, int state);
 void deleteMap(int** gameboard, int r);
 int starter(int level);
 void clearScreen();
@@ -135,12 +134,13 @@ int main()
                     fail_login++;
                     if(fail_login == 3)
                     {
-                        file.close();
-                        fstream file("user.txt", ios::trunc);
-                        file.close();
-                        cout << "Too many invalid tries, user deleted." << endl;
+                        // fstream file("user.txt", ios::trunc);
+                        // file.close();
+                        // cout << "Too many invalid tries, user deleted." << endl;
+                        cout << "Too many invalid tries." << endl;
                         waitSeconds(1);
                         fail_login = 0;
+                        return 0; // If it were not a requirement, I would not add "return 0;" and delete the user.
                     }
                     continue;
                 }   
@@ -198,6 +198,30 @@ int main()
             case 1: r = 10; c = 10; mine_percent = 10; break;
             case 2: r = 15; c = 15; mine_percent = 16; break;
             case 3: r = 20; c = 20; mine_percent = 21; break;
+            case 4: 
+                cout << "Row value: ";
+                cin >> r;
+                if(r < 5)
+                {
+                    cout << "Rows have to be greater than 5" << endl;
+                    continue;
+                }
+
+                cout << "Column value: ";
+                cin >> c;
+                if(r < 5)
+                {
+                    cout << "Columns have to be greater than 5" << endl;
+                    continue;
+                }
+
+                cout << "Mine percent: ";
+                cin >> mine_percent;
+                if(mine_percent < 10 || mine_percent > 60)
+                {
+                    cout << "You can only choose mine percent 10-60" << endl;
+                    continue;
+                }
             }
 
             mineMap = createMap(r,c);
@@ -265,7 +289,7 @@ int main()
             clearScreen();
 
 
-            displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX);
+            displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX, 1);
 
 
             cout << "Movement: WASD | Flag: F | Open cell: Space" << endl;
@@ -301,7 +325,7 @@ int main()
                     {
                         clearScreen();
                         cout << "Game Over!" << endl;
-                        displayMines(mineMap, r, c);
+                        displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX, 0);
                         waitSeconds(2);
                         cout << endl << endl;
 
@@ -335,12 +359,12 @@ int main()
                         reveal += floodFill(hintMap, revealState, r, c, &top, &tail);
                         if(last_reveal != reveal)
                         {
-                            displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX);
+                            displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX, 1);
                         }
                         else
                         {
                             cout << "Win!" << endl;
-                            displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX);
+                            displayMap(mineMap, hintMap, revealState, r, c, cursorY, cursorX, 1);
                             waitSeconds(2);
 
                             if(level <= 2)
@@ -403,11 +427,22 @@ void waitSeconds(int s)
 
 int** createMap(int row, int col)
 {
-    int** gameboard = new int*[row];
+
+    int** gameboard = new(std::nothrow) int*[row];
+    if (gameboard == nullptr)
+    {
+        cout << "Memory allocation failed!" << endl;
+        exit(1);
+    }
 
     for(int i = 0; i < row; i++)
     {
-        gameboard[i] = new int[col];
+        gameboard[i] = new(std::nothrow) int[col];
+        if (gameboard[i] == nullptr) 
+        {
+            cout << "Memory allocation failed!" << endl;
+            exit(1);
+        }
     }
     return gameboard;
 }
@@ -477,7 +512,12 @@ void checkMine(int** mineMap, int** hintMap, int r, int c)
 
 void enqueue(struct Fill** top, struct Fill** tail, int y, int x)
 {
-    Fill* temp = new Fill;
+    Fill* temp = new(std::nothrow) Fill;
+    if (temp == nullptr)
+    {
+        cout << "Queue memory allocation failed!" << endl;
+        exit(1);
+    }
 
     temp->x_c = x;
     temp->y_c = y;
@@ -564,24 +604,8 @@ int floodFill(int** hintMap, int** revealState, int r, int c, Fill** top, Fill**
     return counter;
 }
 
-void displayMines(int** gameboard, int r, int c)
-{   
-    for(int i = 0; i < r; i++) {
-        for(int j = 0; j < c; j++)
-        {
-            if(gameboard[i][j] == 1)
-            {
-                cout << "*" << " ";
-            }
-            else cout << gameboard[i][j] << " ";
-            
-        }
-        cout << endl;
-    }
-    return;
-}
 
-void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c, int cY, int cX)
+void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c, int cY, int cX, int state)
 {
     for(int i = 0; i < r; i++)
     {
@@ -593,7 +617,12 @@ void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c, i
             }
             else cout << " ";
 
-            if(revealState[i][j] == 1)
+            if(state == 0 && mineMap[i][j] ==1)
+            {
+                cout << "*";
+            }
+
+            else if(revealState[i][j] == 1)
             {
                 cout << hintMap[i][j];
             }
@@ -619,8 +648,9 @@ void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c, i
 
 void deleteMap(int** gameboard, int r)
 {
-    for(int i = 0; i < r; i++) {
-        delete[] gameboard[i];
+    for(int i = 0; i < r; i++)
+    {
+        delete[] *(gameboard + i); 
     }
     delete[] gameboard;
 }
@@ -631,7 +661,7 @@ int starter(int level)
     {
         int x;
         cout << ":::::Minesweeper:::::" << endl << endl;
-        cout << "Choose level: " << endl << "Level 1: Easy" << endl << "Level 2: Normal" << endl << "Level 3: Hard" << endl << "Level ";
+        cout << "Choose level: " << endl << "Level 1: Easy" << endl << "Level 2: Normal" << endl << "Level 3: Hard" << endl << "Level 4: Custom" << endl<< "Level ";
         cin >> x;
         if(level < x) cout << "You can choose maximum level " << level << endl << endl << endl;
         else return x;
