@@ -19,8 +19,8 @@ using namespace std;
         char buf = 0;
         struct termios old = {0};
         if (tcgetattr(0, &old) < 0) perror("tcsetattr()");
-        old.c_lflag &= ~ICANON; // Enter basma zorunluluğunu kaldırır
-        old.c_lflag &= ~ECHO;   // Basılan harfin ekrana yazılmasını engeller
+        old.c_lflag &= ~ICANON;
+        old.c_lflag &= ~ECHO;
         old.c_cc[VMIN] = 1;
         old.c_cc[VTIME] = 0;
         if (tcsetattr(0, TCSANOW, &old) < 0) perror("tcsetattr ~ICANON");
@@ -67,7 +67,7 @@ int main()
     int loaded_reveal = 0;
     int level = 1;
     int r, c, mine_percent;
-
+    int  fail_login = 0;
 
     while(1)
     {
@@ -130,8 +130,18 @@ int main()
                 else
                 {
                     cout << endl << "Invalid username or password!" << endl;
-                    waitSeconds(2);
+                    waitSeconds(1);
                     file.close();
+                    fail_login++;
+                    if(fail_login == 3)
+                    {
+                        file.close();
+                        fstream file("user.txt", ios::trunc);
+                        file.close();
+                        cout << "Too many invalid tries, user deleted." << endl;
+                        waitSeconds(1);
+                        fail_login = 0;
+                    }
                     continue;
                 }   
             }
@@ -140,11 +150,22 @@ int main()
         {
             cin.ignore();
             file.close();
-            file.open("user.txt", ios::in | ios::out | ios::trunc);
+            file.open("user.txt", ios::in | ios::out);
             
-            string n, p;
+            string n, p, registered_n;
             cout << "User Name: ";
             getline(cin, n);
+            getline(file, registered_n);
+
+            if(n == registered_n)
+            {
+                cout << "This user is already registered. Log in or create a new account." << endl;
+                file.close();
+                waitSeconds(2);
+                continue;
+            }
+            file.close();
+            file.open("user.txt", ios::in | ios::out | ios::trunc);
             file << n << endl;
             cout << "Password: ";
             getline(cin, p);
@@ -377,7 +398,6 @@ int main()
 
 void waitSeconds(int s)
 {
-    // Verilen saniye (s) kadar mevcut iş parçacığını (thread) uyutur
     this_thread::sleep_for(chrono::seconds(s));
 }
 
