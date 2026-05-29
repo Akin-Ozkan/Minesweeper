@@ -38,259 +38,23 @@ struct Fill{
     Fill* next;
 };
 
-void waitSeconds(int s)
-{
-    // Verilen saniye (s) kadar mevcut iş parçacığını (thread) uyutur
-    this_thread::sleep_for(chrono::seconds(s));
-}
-
-int** createMap(int row, int col)
-{
-    int** gameboard = new int*[row];
-
-    for(int i = 0; i < row; i++)
-    {
-        gameboard[i] = new int[col];
-    }
-    return gameboard;
-}
-
-void addMine(int** mineMap, int r, int c, int d, mt19937& gen)
-{
-    for(int i = 0; i < r; i++) {
-        for(int j = 0; j < c; j++) {
-            mineMap[i][j] = 0;
-        }
-    }
-
-    int targetMines = (r * c) * d / 100; 
-    int placedMines = 0;
-
-    uniform_int_distribution<> randRow(0, r - 1);
-    uniform_int_distribution<> randCol(0, c - 1);
-
-    while(placedMines < targetMines)
-    {
-        int row = randRow(gen);
-        int col = randCol(gen);
-
-        if(mineMap[row][col] == 0)
-        {
-            mineMap[row][col] = 1;
-            placedMines++;
-        }
-    }
-    return;
-}
-
-void checkMine(int** mineMap, int** hintMap, int r, int c)
-{
-    for(int i = 0; i < r; i++)
-    {
-        for(int j = 0; j < c; j++)
-        {
-            int counter = 0;
-
-            for(int x = -1; x <= 1; x++)
-            {
-                for(int y = -1; y <= 1; y++)
-                {
-                    int n_r = i + x;
-                    int n_c = j + y;
-
-                    if((n_r >= 0 && n_r < r && n_c >= 0 && n_c < c) ||
-                    (n_r == 0 &&  n_c >= 0 && n_c < c)|| (n_c == 0 && n_r >= 0 && n_r < r))
-                    {
-                        if(x == 0 && y == 0)
-                        {
-                            continue;
-                        }
-                        if(mineMap[n_r][n_c] == 1)
-                        {
-                            counter++;
-                        }
-                    }
-                }
-                
-            }
-            hintMap[i][j] = counter;
-        }
-    }
-    return;
-}
-
-void enqueue(struct Fill** top, struct Fill** tail, int y, int x)
-{
-    Fill* temp = new Fill;
-
-    temp->x_c = x;
-    temp->y_c = y;
-    temp->next = nullptr;
-
-    if(*top == nullptr)
-    {
-        *top = *tail = temp;
-        return;
-    }
-
-    (*tail)->next = temp;
-    *tail = temp;
-    
-    
-    return;
-}
-
-void dequeue(Fill** top, Fill** tail)
-{
-    if (*top == nullptr)
-    {
-        return;
-    }
-
-    Fill* temp = *top;
-    
-    if(*top == *tail)
-    {
-        *top = *tail = nullptr;
-    }
-    else *top = temp->next;
-    delete temp;
-    return;
-}
-
-int checkState(int** hintMap, int** revealState, int r, int c, int x, int y, Fill** top, Fill** tail)
-{
-    int counter = 0;
-    for(int i = -1; i <= 1; i++)
-    {
-        for(int j = -1; j <= 1; j++)
-        {
-
-            int n_r = y + i;
-            int n_c = x + j;
-
-            if(n_r >= 0 && n_r < r && n_c >= 0 && n_c < c)
-            {
-                if(i == 0 && j == 0) continue;
-
-                if(revealState[n_r][n_c] == 0)
-                {
-                    revealState[n_r][n_c] = 1;
-                    counter++;
-                    if(hintMap[n_r][n_c] == 0) enqueue(top, tail, n_r, n_c);
-                }
-            }
-        } 
-    }
-    return counter;    
-}
+void waitSeconds(int s);
+int** createMap(int row, int col);
+int** createMap(int row, int col);
+void addMine(int** mineMap, int r, int c, int d, mt19937& gen);
+void checkMine(int** mineMap, int** hintMap, int r, int c);
+void enqueue(struct Fill** top, struct Fill** tail, int y, int x);
+void dequeue(Fill** top, Fill** tail);
+int checkState(int** hintMap, int** revealState, int r, int c, int x, int y, Fill** top, Fill** tail);
+int floodFill(int** hintMap, int** revealState, int r, int c, Fill** top, Fill** tail);
+void displayMines(int** gameboard, int r, int c);
+void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c, int cY, int cX);
+void deleteMap(int** gameboard, int r);
+int starter(int level);
+void clearScreen();
 
 
 
-
-int floodFill(int** hintMap, int** revealState, int r, int c, Fill** top, Fill** tail)
-{
-    int counter = 0;
-    revealState[(*top)->y_c][(*top)->x_c] = 1;
-    counter++;
-
-    if(hintMap[(*top)->y_c][(*top)->x_c] != 0)
-    {
-        dequeue(top, tail);
-        return counter;
-    }
-
-    while( (*top) != nullptr )
-    {
-        int currentX = (*top)->x_c;
-        int currentY = (*top)->y_c;
-
-        counter += checkState(hintMap, revealState, r, c, currentX, currentY, top, tail);
-        dequeue(top, tail);
-    }
-    return counter;
-}
-
-
-
-void displayMines(int** gameboard, int r, int c)
-{   
-    for(int i = 0; i < r; i++) {
-        for(int j = 0; j < c; j++)
-        {
-            if(gameboard[i][j] == 1)
-            {
-                cout << "*" << " ";
-            }
-            else cout << gameboard[i][j] << " ";
-            
-        }
-        cout << endl;
-    }
-    return;
-}
-
-void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c, int cY, int cX)
-{
-    for(int i = 0; i < r; i++)
-    {
-        for(int j = 0; j < c; j++)
-        {
-            if(i == cY && j == cX)
-            {
-                cout << ">";
-            }
-            else cout << " ";
-
-            if(revealState[i][j] == 1)
-            {
-                cout << hintMap[i][j];
-            }
-            else if(revealState[i][j] == 2)
-            {
-                cout << "F";
-            }
-            else
-            {
-                cout << ".";
-            }
-            if(i == cY && j == cX)
-            {
-                cout << "<";
-            }
-            else cout << " ";
-
-        }
-        cout << endl;
-    }
-    cout << endl << endl;
-}
-
-void deleteMap(int** gameboard, int r)
-{
-    for(int i = 0; i < r; i++) {
-        delete[] gameboard[i];
-    }
-    delete[] gameboard;
-}
-
-int starter(int level)
-{
-    while(1) // Level lock
-    {
-        int x;
-        cout << ":::::Minesweeper:::::" << endl << endl;
-        cout << "Choose level: " << endl << "Level 1: Easy" << endl << "Level 2: Normal" << endl << "Level 3: Hard" << endl << "Level ";
-        cin >> x;
-        if(level < x) cout << "You can choose level less than" << level << endl << endl << endl;
-        else return x;
-    }
-}
-
-void clearScreen()
-{
-    cout << "\033[2J\033[H" << flush;   
-}
 
 int main()
 {
@@ -483,4 +247,253 @@ int main()
     }
    
     return 0;
+}
+
+void waitSeconds(int s)
+{
+    // Verilen saniye (s) kadar mevcut iş parçacığını (thread) uyutur
+    this_thread::sleep_for(chrono::seconds(s));
+}
+
+int** createMap(int row, int col)
+{
+    int** gameboard = new int*[row];
+
+    for(int i = 0; i < row; i++)
+    {
+        gameboard[i] = new int[col];
+    }
+    return gameboard;
+}
+
+void addMine(int** mineMap, int r, int c, int d, mt19937& gen)
+{
+    for(int i = 0; i < r; i++) {
+        for(int j = 0; j < c; j++) {
+            mineMap[i][j] = 0;
+        }
+    }
+
+    int targetMines = (r * c) * d / 100; 
+    int placedMines = 0;
+
+    uniform_int_distribution<> randRow(0, r - 1);
+    uniform_int_distribution<> randCol(0, c - 1);
+
+    while(placedMines < targetMines)
+    {
+        int row = randRow(gen);
+        int col = randCol(gen);
+
+        if(mineMap[row][col] == 0)
+        {
+            mineMap[row][col] = 1;
+            placedMines++;
+        }
+    }
+    return;
+}
+
+void checkMine(int** mineMap, int** hintMap, int r, int c)
+{
+    for(int i = 0; i < r; i++)
+    {
+        for(int j = 0; j < c; j++)
+        {
+            int counter = 0;
+
+            for(int x = -1; x <= 1; x++)
+            {
+                for(int y = -1; y <= 1; y++)
+                {
+                    int n_r = i + x;
+                    int n_c = j + y;
+
+                    if((n_r >= 0 && n_r < r && n_c >= 0 && n_c < c) ||
+                    (n_r == 0 &&  n_c >= 0 && n_c < c)|| (n_c == 0 && n_r >= 0 && n_r < r))
+                    {
+                        if(x == 0 && y == 0)
+                        {
+                            continue;
+                        }
+                        if(mineMap[n_r][n_c] == 1)
+                        {
+                            counter++;
+                        }
+                    }
+                }
+                
+            }
+            hintMap[i][j] = counter;
+        }
+    }
+    return;
+}
+
+void enqueue(struct Fill** top, struct Fill** tail, int y, int x)
+{
+    Fill* temp = new Fill;
+
+    temp->x_c = x;
+    temp->y_c = y;
+    temp->next = nullptr;
+
+    if(*top == nullptr)
+    {
+        *top = *tail = temp;
+        return;
+    }
+
+    (*tail)->next = temp;
+    *tail = temp;
+    
+    
+    return;
+}
+
+void dequeue(Fill** top, Fill** tail)
+{
+    if (*top == nullptr)
+    {
+        return;
+    }
+
+    Fill* temp = *top;
+    
+    if(*top == *tail)
+    {
+        *top = *tail = nullptr;
+    }
+    else *top = temp->next;
+    delete temp;
+    return;
+}
+
+int checkState(int** hintMap, int** revealState, int r, int c, int x, int y, Fill** top, Fill** tail)
+{
+    int counter = 0;
+    for(int i = -1; i <= 1; i++)
+    {
+        for(int j = -1; j <= 1; j++)
+        {
+
+            int n_r = y + i;
+            int n_c = x + j;
+
+            if(n_r >= 0 && n_r < r && n_c >= 0 && n_c < c)
+            {
+                if(i == 0 && j == 0) continue;
+
+                if(revealState[n_r][n_c] == 0)
+                {
+                    revealState[n_r][n_c] = 1;
+                    counter++;
+                    if(hintMap[n_r][n_c] == 0) enqueue(top, tail, n_r, n_c);
+                }
+            }
+        } 
+    }
+    return counter;    
+}
+
+int floodFill(int** hintMap, int** revealState, int r, int c, Fill** top, Fill** tail)
+{
+    int counter = 0;
+    revealState[(*top)->y_c][(*top)->x_c] = 1;
+    counter++;
+
+    if(hintMap[(*top)->y_c][(*top)->x_c] != 0)
+    {
+        dequeue(top, tail);
+        return counter;
+    }
+
+    while( (*top) != nullptr )
+    {
+        int currentX = (*top)->x_c;
+        int currentY = (*top)->y_c;
+
+        counter += checkState(hintMap, revealState, r, c, currentX, currentY, top, tail);
+        dequeue(top, tail);
+    }
+    return counter;
+}
+
+void displayMines(int** gameboard, int r, int c)
+{   
+    for(int i = 0; i < r; i++) {
+        for(int j = 0; j < c; j++)
+        {
+            if(gameboard[i][j] == 1)
+            {
+                cout << "*" << " ";
+            }
+            else cout << gameboard[i][j] << " ";
+            
+        }
+        cout << endl;
+    }
+    return;
+}
+
+void displayMap(int** mineMap, int** hintMap, int** revealState, int r, int c, int cY, int cX)
+{
+    for(int i = 0; i < r; i++)
+    {
+        for(int j = 0; j < c; j++)
+        {
+            if(i == cY && j == cX)
+            {
+                cout << ">";
+            }
+            else cout << " ";
+
+            if(revealState[i][j] == 1)
+            {
+                cout << hintMap[i][j];
+            }
+            else if(revealState[i][j] == 2)
+            {
+                cout << "F";
+            }
+            else
+            {
+                cout << ".";
+            }
+            if(i == cY && j == cX)
+            {
+                cout << "<";
+            }
+            else cout << " ";
+
+        }
+        cout << endl;
+    }
+    cout << endl << endl;
+}
+
+void deleteMap(int** gameboard, int r)
+{
+    for(int i = 0; i < r; i++) {
+        delete[] gameboard[i];
+    }
+    delete[] gameboard;
+}
+
+int starter(int level)
+{
+    while(1) // Level lock
+    {
+        int x;
+        cout << ":::::Minesweeper:::::" << endl << endl;
+        cout << "Choose level: " << endl << "Level 1: Easy" << endl << "Level 2: Normal" << endl << "Level 3: Hard" << endl << "Level ";
+        cin >> x;
+        if(level < x) cout << "You can choose level less than" << level << endl << endl << endl;
+        else return x;
+    }
+}
+
+void clearScreen()
+{
+    cout << "\033[2J\033[H" << flush;   
 }
